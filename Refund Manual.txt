@@ -1,0 +1,170 @@
+VPN -
+DOAT_User
+d0@!_23
+
+FinAssam Connection -
+192.168.15.182:17706
+doat_user
+tqt8@4a2#n<9TTt
+
+----------------------------------------------------------------- 911 Details -------------------------------------------------
+
+--- Query Starts from HERE ------------ finassam mariadb
+
+SELECT DATE(a.challan_date), SUBSTR(h.head,1,4) 
+,sum(hoa.amount) 
+FROM  ctmis_egras.receipt_base a 
+JOIN ctmis_egras.receipt_hoa_details hoa
+	ON a.id = hoa.receipt_base
+JOIN probityfinancials.heads h 
+	ON hoa.head_id = h.head_id
+JOIN pfmaster.hierarchy_setup try 
+	ON a.treasury_id = try.hierarchy_Id
+WHERE DATE(a.challan_date) >= '2024-03-01' 
+
+AND SUBSTR(h.head,9,3) = '911'
+AND try.hierarchy_Code IN  ('MAI','BOK','DHK','SRP','NBC','SLK','HAT','BAI','SNR','HAM','DKK','BIH','PSL','KAR','BNG','TSK','HFL','NSL','GAR','HOJ','SON',
+'HKD','DAR','SVS','NLB','DBR','GLP','DPU','NAG','ABH','KAM','NGT', 'CAC', 'DIB', 'DMJ','LKM', 'MRG', 'TML', 'RAN', 'BJN', 'MSL', 'GOS', 'UDG', 
+'BHR', 'BRT', 'SRB', 'BIS', 'JOR', 'GT', 'DER', 'NDT','KLB','BKK', 'RGP')
+
+GROUP BY DATE(a.challan_date), SUBSTR(h.head,1,4) 
+
+ORDER BY 1,2
+
+--- Query Ends HERE
+
+############################################################## ORACLE ########################################################
+
+
+--- truncate table refund_911 
+
+--- 1. select a.*, a.rowid from refund_911 a
+
+
+-------- QUERY STARTS HERE  ---- oracle
+
+
+select m.challan_date "Date",
+m.major_head||'->'||n.description "Major Head",  -- Uncomment these line to get Major head wise report
+sum(m.amt) "Amount in Rs" , round( sum(m.amt)/10000000 ,2) "Amount in Cr"
+from 
+(
+    select a.challan_date, c.major_head  , sum(a.amount) amt from rct_challan_hdr a 
+    join rct_challan_dtl b
+         on a.treasury_code = b.treasury_code
+         and a.challan_date = b.challan_date
+         and a.challan_seq = b.challan_seq
+    join gen_account_mst c
+         on b.account_code = c.account_code 
+    where
+    a.challan_date >= to_date('11/03/2024','dd/mm/yyyy')
+    and c.minor_head = '911'
+    and upper(a.particulars) <> 'ORUNODOI'
+    group by a.challan_date, c.major_head
+    --order by to_date( to_char(a.challan_date,'dd-mm-yyyy') , 'dd-mm-yyyy')
+
+    union all
+
+    select x.* from refund_911 x
+    where
+    x.challan_date >= to_date('11/03/2024','dd/mm/yyyy')
+) m
+join gen_major_head_mst n on m.major_head = n.major_head
+group by m.challan_date
+,m.major_head||'->'||n.description  -- Uncomment these line to get Major head wise report
+order by 1
+
+
+-------- QUERY ENDS HERE
+
+
+
+
+
+
+
+
+
+
+----------------------------------------------------------------- 0049 Details -------------------------------------------------
+
+--- Query Starts from HERE ------------ finassam mariadb
+
+
+
+SELECT DATE(a.challan_date),
+sum(hoa.amount)
+FROM  ctmis_egras.receipt_base a 
+JOIN ctmis_egras.receipt_hoa_details hoa
+	ON a.id = hoa.receipt_base
+JOIN probityfinancials.heads h 
+	ON hoa.head_id = h.head_id
+JOIN pfmaster.hierarchy_setup try 
+	ON a.treasury_id = try.hierarchy_Id
+WHERE date(a.challan_date) >= '2024-03-01' 
+
+AND SUBSTR(h.head,1,4) = '0049'
+AND try.hierarchy_Code IN  ('MAI','BOK','DHK','SRP','NBC','SLK','HAT','BAI','SNR','HAM','DKK','BIH','PSL','KAR','BNG','TSK','HFL','NSL','GAR','HOJ','SON',
+'HKD','DAR','SVS','NLB','DBR','GLP','DPU','NAG','ABH','KAM','NGT', 'CAC', 'DIB', 'DMJ','LKM', 'MRG', 'TML', 'RAN', 'BJN', 'MSL', 'GOS', 'UDG', 
+'BHR', 'BRT', 'SRB', 'BIS', 'JOR', 'GT', 'DER', 'NDT','KLB','BKK', 'RGP')
+GROUP BY DATE(a.challan_date)
+ORDER BY 1
+
+--- Query Ends HERE
+
+
+############################################################## ORACLE ########################################################
+
+
+--- truncate table refund_0049 
+
+--- 1. select a.*, a.rowid from refund_0049 a
+
+
+-------- QUERY STARTS HERE  ---- oracle
+
+select m.challan_date "Date",
+sum(m.amt) "Amount in Rs", round( sum(m.amt)/10000000 ,2) "Amount in Rs"
+from
+(
+  select 
+  a.challan_date , sum(a.amount) amt
+   from rct_challan_hdr a 
+  join rct_challan_dtl b
+       on a.treasury_code = b.treasury_code
+       and a.challan_date = b.challan_date
+       and a.challan_seq = b.challan_seq
+  join gen_account_mst c
+       on b.account_code = c.account_code 
+  where
+  a.challan_date >= to_date('01/03/2024','dd/mm/yyyy')
+  and c.major_head = '0049'
+  and a.treasury_code <> 'CYB'
+  group by a.challan_date
+  --order by to_date( to_char(a.challan_date,'dd-mm-yyyy') , 'dd-mm-yyyy') 
+
+  union all
+
+  select x.* from refund_0049 x
+
+  union all
+
+  SELECT TRUNC(A.ENTRY_DATE) ,
+  --B.SCHEME_CODE AS "Head of Account",  
+  SUM(B.AMOUNT) 
+  FROM PAO.RECEIPT_ENTERED A 
+  JOIN PAO.RECEIPT_GROSS_DETAILS B
+  ON 
+       A.FIN_YEAR=B.FIN_YEAR
+     AND A.CIN_NO=B.TRAN_ID
+       AND A.TREA_CODE=B.TREA_CODE
+  WHERE A.FIN_YEAR='2023-2024'
+  AND A.MAJOR_HEAD='0049'
+  AND TRIM(TRUNC(A.ENTRY_DATE)) >=  TO_DATE('01/03/2024', 'dd/mm/yyyy') 
+  GROUP BY TRUNC(A.ENTRY_DATE)
+) m
+group by m.challan_date
+order by 1
+
+
+-------- QUERY ENDS HERE

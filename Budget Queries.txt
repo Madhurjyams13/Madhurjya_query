@@ -1,0 +1,87 @@
+#fetching ceiling details by ceiling number
+
+SELECT
+	d.ceiling_acc_no AS ceilingNumber,
+	d.approved_on AS validFrom,
+	d.ceiling_valid AS validUpto,
+	COALESCE(sum(cdh.addl_req), 0) as amount
+FROM
+	probityfinancials.ceiling_distributed d
+join probityfinancials.ceiling_distributed_heads cdh on
+	cdh.dis_id = d.id
+WHERE
+	ceiling_acc_no = "FIN/AKM/AAT/001/2023/1594" ; 
+	
+
+#fetching total expenditure of ceiling 
+
+SELECT
+	sum(total_allowance)
+FROM
+	ctmis_master.bill_details_base b
+where
+	b.foc_number = "ceiling number"
+	and approved_by is not null;
+
+	
+#head budget
+
+SELECT
+	sum(d.allotted_amount)
+FROM
+	probityfinancials.budget_allocation_details as d
+join probityfinancials.budget_allocation_base as b on
+	d.base_id = b.id
+where
+	b.year = "2023-24"
+	and head_id = 1
+	and grant_id = 2 ;
+	
+# total ddo budget = getTotalAllotment - getTotalResumption
+
+#getTotalAllotment 
+
+SELECT
+	sum(d.allotted_amount)
+FROM
+	probityfinancials.budget_distribution_base b
+JOIN probityfinancials.budget_distribution_details d ON
+	d.base_id = b.id
+WHERE
+	b.year = "2023-24"
+	AND b.ddo_id = 1
+	AND d.head_id = 2
+	and d.delete_status = 'N' ;
+
+#getTotalResumption
+
+SELECT
+	sum(d.resumption_amount)
+FROM
+	probityfinancials.resumption_base b
+JOIN probityfinancials.resumption_details d ON
+	d.base_id = b.rb_id
+WHERE
+			b.year = "2023-24"
+	AND b.ddo_id = 1
+	AND d.head_id = 2
+	and d.delete_status = 'N';
+
+#total ddo expenditure
+
+SELECT sum(a.amount)
+FROM ctmis_accounts.ledger_expenditure a 
+JOIN pfmaster.hierarchy_setup b 
+ON a.ddo = b.hierarchy_Id 
+WHERE a.financial_year = '2023-24'
+AND b.hierarchy_Code = 'AKM/POL/004';
+
+#total head expenditure
+
+SELECT sum(a.amount)
+FROM ctmis_accounts.ledger_expenditure a 
+WHERE a.financial_year = '2023-24'
+AND a.head_of_account = 1;
+
+
+

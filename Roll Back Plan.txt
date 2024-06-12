@@ -1,0 +1,834 @@
+129  - mariadb
+ctmis_to_be_inserted (A-B), ctmis_to_be_updated (B-A)
+
+ctmis_pilot Prod like 
+
+select a.* from gen_treasury_mst a 
+where
+a.treasury_code in ('KAM','NGT', 'CAC', 'DIB', 'DMJ','LKM', 'MRG', 'TML', 'RAN', 'BJN', 'MSL', 'GOS', 'UDG', 'BHR', 'BRT', 'SRB', 'BIS', 'JOR', 'GT', 'DER') 
+
+
+ctmis_to_be_inserted.PAY_BILL_HDR_TO_BE_INSERTED unique_id == concat try_code, token_number, token_date == after population 
+
+-------------------------------------------
+
+SELECT a.id, t.token, DATE(t.token_date), try.hierarchy_Code, st.ddo_code ,   
+a.bill_number, a.bill_date, 
+case
+	when a.pay_month = 1 then 'Jan'
+	when a.pay_month = 2 then 'Feb'
+	when a.pay_month = 3 then 'Mar'
+	when a.pay_month = 4 then 'Apr'
+	when a.pay_month = 5 then 'May'
+	when a.pay_month = 6 then 'Jun'
+	when a.pay_month = 7 then 'Jul'
+	when a.pay_month = 8 then 'Aug'
+	when a.pay_month = 9 then 'Sep'
+	when a.pay_month = 10 then 'Oct'
+	when a.pay_month = 11 then 'Nov'
+	when a.pay_month = 12 then 'Dec'
+	ELSE NULL 
+END AS pay_month, 
+a.pay_year, IFNULL(a.bill_group,0) , 'AS', 'N', a.total_allowance, (a.total_allowance - a.total_deduction ) ,
+a.remarks, '' CREATE_UID ,DATE(t.token_date),'' MODIFIED_UID,'' MODIFIED_DATE, REPLACE (a.voucher_number, '/0', '/'), date(a.voucher_date), 
+case
+	when a.approved_by IS NOT NULL 
+		then 'A'
+	when a.rejected_by IS NOT NULL 
+		then 'R'
+	when a.objected_by IS NOT NULL 
+		then 'O'
+	when a.approved_by IS NULL AND a.rejected_by IS NULL
+		then 'P'
+END processing_flag, 
+'' WRITE_OFF, st.head_of_account,  a.sanction_name, a.sanction_number, a.sanction_date, '' PAY_TYPE , a.sub_type ,'' MODIFIED_UID , '' EMPLOYEE_ID , '' EMPLOYEE_NAME ,
+'' REFUND_TYPE, 
+SUBSTR(st.head_of_account,1,4) MAJOR_HEAD,
+CONCAT(st.source_bill_type, st.source_bill_id) SALARY_ID, a.head_id, 
+#'-----------',
+#,st.* #, '------------', a.* 
+FROM ctmis_master.bill_details_base a 
+JOIN ctmis_master.token_master t
+	ON a.token_id = t.id	
+JOIN pfmaster.hierarchy_setup try 
+	ON a.treasury_id = try.hierarchy_Id
+	AND try.category = 'T'
+LEFT JOIN ctmis_staging.staging_bill_details_base st
+	ON a.stager_id = st.id
+WHERE
+try.hierarchy_Code = 'KKJ'
+AND DATE(a.token_date) >= '2023-11-28'
+
+
+
+-----------------------    
+
+HEAD OF ACCOUNT QUERY 
+
+
+SELECT m.head_id, m.head, SUBSTR(m.head,1, LENGTH(m.head)-6) head1,
+m.plan_status, m.area_code, m.voted_charged ,
+m.detail_head, m.sub_detail_head
+FROM 
+(
+SELECT h.head_id,  h.head, dh.head_code detail_head, sdh.head_code sub_detail_head,
+CASE
+	WHEN pc.pc_id IS NOT NULL THEN pc.abbreviation
+	WHEN h.plan_status_migration IS NOT NULL THEN h.plan_status_migration
+	WHEN h.plan_status = 'NP' THEN 'EE'
+	ELSE 'Plan'
+END AS plan_status,
+h.ga_ssa_status area_code, h.voted_charged_status voted_charged
+FROM probityfinancials.heads h 
+LEFT JOIN probityfinancials.plan_category_head_mapping pchm 
+	ON	h.head_id = pchm.head_id
+LEFT JOIN probityfinancials.plan_category pc 
+	ON	pchm.pc_id = pc.pc_id
+JOIN probityfinancials.head_setup dh
+	ON h.detailed_head = dh.head_setup_id
+JOIN probityfinancials.head_setup sdh
+	ON h.sub_detailed_head = sdh.head_setup_id	
+) m
+
+#ORDER BY m.head_id DESC LIMIT 0,1000
+
+
+
+----- insert the above resultset into finassam_heads
+
+
+-- update query 1
+update  finassam_heads a
+set a.headc =
+case 
+    when a.detail_head = '01' and a.sub_detail_head not in('05','08','09','12','16','13')
+      then a.headf1||'-'||a.detail_head||'-'||'00'||'-'||a.plan_status||'-'||a.area_code||'-'||a.voted_charged
+    else
+      a.headf1||'-'||a.detail_head||'-'||a.sub_detail_head||'-'||a.plan_status||'-'||a.area_code||'-'||a.voted_charged 
+    end  
+
+
+---------
+--- update query 2
+
+update finassam_heads a set a.account_code = 
+(
+     select b.account_code from gen_account_mst b
+     where A.HEADC = B.MAJOR_HEAD||'-'||B.SUBMAJOR_HEAD||'-'||B.MINOR_HEAD||'-'||
+     B.SUBHEAD||'-'||B.SUBSUB_HEAD||'-'||B.DETAIL_HEAD
+     ||'-'||B.SUBDETAIL_HEAD||'-'||B.PLAN_STATUS||'-'||B.AREA_CODE||'-'||B.VOTED_CHARGED  
+)
+--from finassam_heads a
+where
+exists
+(
+     select b.* from gen_account_mst b
+     where A.HEADC = B.MAJOR_HEAD||'-'||B.SUBMAJOR_HEAD||'-'||B.MINOR_HEAD||'-'||
+     B.SUBHEAD||'-'||B.SUBSUB_HEAD||'-'||B.DETAIL_HEAD
+     ||'-'||B.SUBDETAIL_HEAD||'-'||B.PLAN_STATUS||'-'||B.AREA_CODE||'-'||B.VOTED_CHARGED  
+)
+
+
+------------------------------------------------------------
+
+GEN_WORKFLOW_LOG
+
+-------- 
+
+SELECT a.id, t.token, DATE(t.token_date), 'B', 
+case 
+	when st.designation = 'Dealing Assistant' then 1
+	when st.designation = 'Accountant' then 2
+	when wf.flow_type = 'APPROVE' then 4
+	when st.designation = 'Treasury Officer' then 3
+	ELSE 0
+END AS PROCESSING_STAGE,
+try.hierarchy_Code, 
+SUBSTR(stg.head_of_account,1,4) MAJOR_HEAD,
+case 
+	when st.designation = 'Dealing Assistant' then 'DA'
+	when st.designation = 'Accountant' then 'ACCT'
+	when wf.flow_type = 'APPROVE' then 'CW'
+	when st.designation = 'Treasury Officer' then 'TO'
+END AS ROLE_ID, um.user_Name, um.user_Code, 
+case 
+	when st.designation = 'Dealing Assistant' then wf.entry_date
+	when st.designation = 'Accountant' then wf.entry_date
+	when wf.flow_type = 'APPROVE' then wf.processed_on
+	when st.designation = 'Treasury Officer' then wf.entry_date
+END AS PROCESS_DATE, 'O',
+stg.ddo_code
+#wf.entry_date, wf.processed_on
+#, '-----', st.*, '------', um.*, '----------', hs.*
+#,'------------',wf.* 
+FROM ctmis_master.bill_details_base a 
+JOIN ctmis_master.token_master t
+	ON a.token_id = t.id	
+JOIN pfmaster.hierarchy_setup try 
+	ON a.treasury_id = try.hierarchy_Id
+	AND try.category = 'T'
+JOIN ctmis_master.bill_details_flow wf 
+	ON a.id = wf.bill_base
+JOIN pfmaster.seat_user_alloted st
+	ON wf.to_seat = st.allot_Id
+JOIN pfmaster.hierarchy_setup hs
+	ON st.seat_Id = hs.hierarchy_Id
+JOIN pfmaster.user_setup um
+	ON st.user_Id = um.user_Id
+LEFT JOIN ctmis_staging.staging_bill_details_base stg
+	ON a.stager_id = stg.id		
+WHERE
+try.hierarchy_Code = 'KKJ'
+AND DATE(a.token_date) >= '2023-11-28'
+ORDER BY a.bill_number DESC, wf.id 
+  
+
+
+
+---------------------------- 
+
+------------ PAY_PAYORDER Query
+
+SELECT a.id, t.token, DATE(t.token_date), try.hierarchy_Code, 1, '' DDO_NAME,
+pb.net_amount 
+,'' CHEQUE_MODE , '' PAYMENT_MODE 
+,'' CHEQUE_NUMBER,'' CHEQUE_DATE,'' MICR_NUMBER #will be populated later from payment cheque
+,'' CREATE_UID, DATE(a.approved_on)
+,'' MODIFIED_UID , '' MODIFIED_DATE, 'A', 'Y', 1, 'Y', pb.payment_scheduled_on, pb.token_number, pb.payment_type
+#,a.*, '----------' ,pb.*
+FROM ctmis_master.bill_details_base a 
+JOIN ctmis_master.token_master t
+	ON a.token_id = t.id	
+JOIN pfmaster.hierarchy_setup try 
+	ON a.treasury_id = try.hierarchy_Id
+	AND try.category = 'T'
+JOIN ctmis_master.payment_bills pbi
+	ON a.id = pbi.bill_details_base_id
+JOIN ctmis_master.payment_base pb
+	ON pbi.payment_base_id = pb.id 
+WHERE
+try.hierarchy_Code = 'KKJ'
+AND DATE(a.token_date) >= '2023-11-28'
+ORDER BY a.id DESC 
+
+
+
+
+-------------------- RBI_EKUBER_PAY_FILE  Query
+
+
+
+SELECT a.id, pb.biz_msg_idr, try.hierarchy_Code, t.token, DATE(t.token_date)
+,pbi.net_amount , COUNT(pbd.end_to_end_id) ,pb.payment_processed_on, '' REMARKS, '' MAC_ADDRESS, '' IP_ADDRESS, 'Y' ZIPCREATED
+#,'----------' ,pbd.* , '---------------' ,pbi.*
+FROM ctmis_master.bill_details_base a 
+JOIN ctmis_master.token_master t
+	ON a.token_id = t.id	
+JOIN pfmaster.hierarchy_setup try 
+	ON a.treasury_id = try.hierarchy_Id
+	AND try.category = 'T'
+JOIN ctmis_master.payment_bills pbi
+	ON a.id = pbi.bill_details_base_id
+JOIN ctmis_master.payment_base pb
+	ON pbi.payment_base_id = pb.id 
+JOIN ctmis_master.payment_bill_details pbd 
+	ON pbi.id = pbd.payment_bill_id
+WHERE
+try.hierarchy_Code = 'KLB'
+AND DATE(a.token_date) >= '2023-11-28'
+GROUP BY a.id, pb.biz_msg_idr, try.hierarchy_Code, t.token, DATE(t.token_date)
+,pbi.net_amount  ,pb.payment_processed_on, ''  ''  '' , 'Y' 
+ORDER BY a.id DESC
+
+
+
+
+----------------------- PAY_TRANSFER_DTL Query
+
+SELECT a.id, a.total_allowance, a.total_deduction,
+t.token, DATE(t.token_date), c.token challan_seq, DATE(c.challan_date), try.hierarchy_Code, 'N', 'AS', 
+'' FOR_WHOM, st.ddo_code DEPOSITED_BY ,
+rb.particulars, rb.total_receipt, rb.remarks , cm.transfer_type, '' CREATE_UID, DATE(c.challan_date) CREATE_DATE, 
+'' MODIFIED_UID, '' MODIFIED_DATE, st.ddo_code DDO_CODE
+,'--------' , cm.*
+#,'-------' , hoa.*
+,'-------' , rpyd.beneficiary_type, rpyd.beneficiary_id
+#,'-------' , rpd.*
+#,com.*, '---------'
+#,'----------', rb.*
+FROM ctmis_master.bill_details_base a 
+JOIN ctmis_master.token_master t
+	ON a.token_id = t.id	
+JOIN pfmaster.hierarchy_setup try 
+	ON a.treasury_id = try.hierarchy_Id
+	AND try.category = 'T' 
+JOIN ctmis_egras.receipt_base rb
+	ON a.id = rb.source_reference
+	AND rb.source_type = 'BILLS'
+JOIN ctmis_master.challan_master c
+	ON rb.challan_id = c.id
+JOIN ctmis_dataset.bill_component_master cm 
+	ON rb.source_master_code = cm.code
+#JOIN ctmis_egras.receipt_hoa_details hoa
+#	ON rb.id = hoa.receipt_base
+JOIN ctmis_egras.receipt_payee_details rpyd
+	ON rb.id = rpyd.receipt_base
+#JOIN ctmis_egras.receipt_payer_details rpd
+#	ON rb.id = rpd.receipt_base
+LEFT JOIN ctmis_staging.staging_bill_details_base st
+	ON a.stager_id = st.id
+WHERE
+try.hierarchy_Code = 'KKJ'
+AND DATE(a.token_date) >= '2023-11-28'
+
+
+----- FOR WHOM DEPOSITED DECODE
+ 
+if beneficiary type E - probityfinancials.eis_data
+W - probityfinancials.wis_data
+V - vendor_database.commitment_vendor
+K - ctmis_eppo.kritagyata_base
+P - ctmis_eppo.psai_base
+
+
+
+
+-------------------- Component account Code Mapping 
+UPDATE ctmis_pilot.bill_details_component
+SET COMP_MST = CASE ACCOUNT_CODE
+WHEN 5097 THEN 'AGHBA'
+WHEN 5100 THEN 'AGHBA'
+WHEN 5108 THEN 'TMCA'
+WHEN 5111 THEN 'MCAP'
+WHEN 32024 THEN 'CS'
+WHEN 32154 THEN 'AGOCA'
+WHEN 32412 THEN 'TGIS'
+WHEN 32412 THEN 'TGIS'
+WHEN 32413 THEN 'TGIS'
+WHEN 32609 THEN 'TPT'
+WHEN 33009 THEN 'TOCA'
+WHEN 33013 THEN 'HBAI'
+WHEN 33014 THEN 'THBA'
+WHEN 33015 THEN 'TMCA'
+WHEN 33017 THEN 'TO'
+WHEN 33021 THEN 'TIT'
+WHEN 33023 THEN 'ITFR'
+WHEN 33025 THEN 'GPFS'
+WHEN 33026 THEN 'GPFS'
+WHEN 33027 THEN 'GPFR'
+WHEN 33028 THEN 'GPFR'
+WHEN 33034 THEN 'THR'
+WHEN 33034 THEN 'OH'
+WHEN 33035 THEN 'OTS'
+WHEN 33063 THEN 'AGO'
+WHEN 112556 THEN 'AGHBAH'
+WHEN 269770 THEN 'TGIS'
+WHEN 269771 THEN 'TGIS'
+WHEN 366124 THEN 'FR'
+WHEN 408728 THEN 'TPT'
+WHEN 408747 THEN 'SS'
+WHEN 408750 THEN 'VAT'
+WHEN 409328 THEN 'TPT'
+WHEN 473637 THEN 'NPSS'
+WHEN 473640 THEN 'NPSS'
+WHEN 597291 THEN 'NPSL'
+WHEN 892272 THEN 'CGST'
+WHEN 892274 THEN 'IGST'
+WHEN 892276 THEN 'SGST'
+WHEN 893815 THEN 'MPFR'
+WHEN 899054 THEN 'MMSLY'
+ELSE COMP_MST
+END;
+
+UPDATE ctmis_pilot.bill_details_component
+SET COMP_MST = CASE SUBDETAIL_HEAD
+WHEN 1 THEN 'PAY'
+WHEN 2 THEN 'DA'
+WHEN 3 THEN 'IR'
+WHEN 4 THEN 'OA'
+WHEN 5 THEN 'LTC'
+WHEN 6 THEN 'MA'
+WHEN 7 THEN 'HR'
+WHEN 8 THEN 'MR'
+WHEN 9 THEN 'HRM'
+WHEN 10 THEN 'OTA'
+WHEN 11 THEN 'DP'
+WHEN 12 THEN 'AS'
+WHEN 13 THEN 'PRA'
+WHEN 14 THEN 'CE'
+WHEN 15 THEN 'SP'
+WHEN 16 THEN 'FP'
+WHEN 17 THEN 'GP'
+WHEN 18 THEN 'FPT'
+WHEN 19 THEN 'HLA'
+WHEN 20 THEN 'RAA'
+WHEN 21 THEN 'WA'
+WHEN 22 THEN 'RRI'
+WHEN 23 THEN 'NPA'
+WHEN 24 THEN 'HCA'
+WHEN 25 THEN 'CSA'
+WHEN 26 THEN 'CTA'
+WHEN 27 THEN 'SAA'
+WHEN 29 THEN 'TC'
+WHEN 30 THEN 'SA'
+WHEN 31 THEN 'EA'
+WHEN 32 THEN 'KA'
+WHEN 33 THEN 'MDA'
+WHEN 34 THEN 'RA'
+WHEN 35 THEN 'RFA'
+WHEN 36 THEN 'BA'
+WHEN 37 THEN 'CPA'
+WHEN 38 THEN 'KMA'
+WHEN 39 THEN 'CMDA'
+WHEN 40 THEN 'SCA'
+WHEN 41 THEN 'TA'
+WHEN 42 THEN 'FA'
+WHEN 43 THEN 'STA'
+WHEN 44 THEN 'HZA'
+WHEN 45 THEN 'SDA'
+WHEN 46 THEN 'TRA'
+WHEN 47 THEN 'CVA'
+WHEN 48 THEN 'LA'
+WHEN 49 THEN 'CCA'
+WHEN 50 THEN 'DCA'
+WHEN 51 THEN 'PSP'
+WHEN 52 THEN 'CC'
+WHEN 99 THEN 'OTS'
+ELSE COMP_MST
+END;
+
+--------------------- EMP_SAL_DTL Query
+
+SELECT a.id, a.total_net_amount, try.hierarchy_Code, emp.beneficiary_bank_account ACCOUNT_NUMBER, st.ddo_code DDO_CODE, 
+t.token, DATE(t.token_date), a.pay_year,
+case
+	when a.pay_month = 1 then 'Jan'
+	when a.pay_month = 2 then 'Feb'
+	when a.pay_month = 3 then 'Mar'
+	when a.pay_month = 4 then 'Apr'
+	when a.pay_month = 5 then 'May'
+	when a.pay_month = 6 then 'Jun'
+	when a.pay_month = 7 then 'Jul'
+	when a.pay_month = 8 then 'Aug'
+	when a.pay_month = 9 then 'Sep'
+	when a.pay_month = 10 then 'Oct'
+	when a.pay_month = 11 then 'Nov'
+	when a.pay_month = 12 then 'Dec'
+	ELSE NULL 
+END AS pay_month, (emp.allowance - emp.deduction) AMOUNT ,  DATE(t.token_date) CREATE_DATE, '' MODIFIED_UID, '' MODIFIED_DATE,
+UPPER(emp.beneficiary_name) EMP_NAME, 'O' BILL_TYPE 
+,'------',emp.beneficiary_code, emp.beneficiary_bank_account, emp.beneficiary_type, emp.beneficiary_id
+#,'-----',emp.*, '-----------', a.*
+FROM ctmis_master.bill_details_base a 
+JOIN ctmis_master.token_master t
+	ON a.token_id = t.id	
+JOIN pfmaster.hierarchy_setup try 
+	ON a.treasury_id = try.hierarchy_Id
+	AND try.category = 'T'
+LEFT JOIN ctmis_staging.staging_bill_details_base st
+	ON a.stager_id = st.id
+JOIN ctmis_master.bill_details_beneficiary emp
+	ON a.id = emp.bill_base
+WHERE
+try.hierarchy_Code = 'KKJ'
+AND DATE(a.token_date) >= '2023-11-28'
+ORDER BY a.id DESC 
+
+
+
+---------------------- PAY_DEMAND_DTL
+
+SELECT t.token, try.hierarchy_Code, DATE(t.token_date), 
+substr(dep.hierarchy_Code,1,2) DEP_CODE, IFNULL(a.demand_number,0) DEMAND_NUMBER , 
+'' CREATE_UID, DATE(t.token_date) CREATE_DATE, '' MODIFIED_UID, '' MODIFIED_DATE
+,'----', st.ddo_code, a.bill_number
+,'-----', a.* 
+FROM ctmis_master.bill_details_base a 
+JOIN ctmis_master.token_master t
+	ON a.token_id = t.id	
+JOIN pfmaster.hierarchy_setup try 
+	ON a.treasury_id = try.hierarchy_Id
+	AND try.category = 'T'
+LEFT JOIN ctmis_staging.staging_bill_details_base st
+	ON a.stager_id = st.id
+JOIN pfmaster.hierarchy_setup dep
+	ON a.department_id = dep.hierarchy_Id
+WHERE
+try.hierarchy_Code = 'KKJ'
+AND DATE(a.token_date) >= '2023-11-28' 
+AND a.demand_number IS NULL 
+ORDER BY a.id DESC
+
+
+
+
+
+
+------------------------- SUB DETAIL DTL 
+
+SELECT 
+t.token, DATE(t.token_date),  try.hierarchy_Code, '' sub_detail_head, SUM( c.amount) ,'' create_uid, DATE(t.token_date) create_date, 
+'' MODIFIED_UID, '' MODIFIED_DATE,
+'--------' ,d.code,d.bill_type,d.bill_sub_type , d.component_name,d.component_code , a.total_allowance
+from ctmis_master.bill_details_base a 
+JOIN pfmaster.hierarchy_setup try 
+	ON a.treasury_id = try.hierarchy_Id
+	AND try.category = 'T' 
+JOIN ctmis_master.token_master t
+	ON a.token_id = t.id
+join ctmis_master.bill_details_beneficiary b 
+	on a.id=b.bill_base
+join ctmis_master.bill_details_component c 
+	on b.id=c.bill_beneficiary
+join ctmis_dataset.bill_component_master d
+	on c.component_master= d.code 
+	and d.component_type='A'
+where  try.hierarchy_Code = 'KKJ'
+AND DATE(a.token_date) >= '2023-11-28'
+
+GROUP BY t.token, DATE(t.token_date),  try.hierarchy_Code,  '' ,   '' , DATE(t.token_date) ,
+d.code,d.bill_type,d.bill_sub_type , d.component_name,d.component_code, a.total_allowance
+order by a.id DESC
+
+
+
+
+
+
+
+--------------------- PAY_DEPOSIT_REFUND
+
+
+SELECT rb.id, t.token, DATE(t.token_date), rb.voucher_number, date(rb.challan_deposit_date), try.hierarchy_Code, rb.total_receipt, 
+'' CREATE_UID, date(ldr.entry_date), '' MODIFIED_UID, '' MODIFIED_DATE,
+case when ld.receipt_type = 'GT' then 'TD' ELSE ld.receipt_type END AS RECEIPT_TYPE , ldr.balance_amount, ldr.deduction_amount, ld.current_flag, c.token, DATE(c.challan_date),
+tryf.hierarchy_Code
+#'------',ldr.*, '------', ld.*
+#, '---', a.* 
+FROM ctmis_accounts.ledger_deposit_refund ldr
+JOIN  ctmis_accounts.ledger_deposit ld
+	ON ld.id = ldr.ledger_deposit	
+JOIN ctmis_master.bill_details_base a
+	ON ldr.source_reference = a.id 
+	AND ldr.source_category = 'BILLS'
+JOIN pfmaster.hierarchy_setup try 
+	ON a.treasury_id = try.hierarchy_Id
+	AND try.category = 'T' 
+JOIN ctmis_master.token_master t
+	ON a.token_id = t.id
+JOIN ctmis_egras.receipt_base rb
+	ON ld.source_reference = rb.id
+JOIN pfmaster.hierarchy_setup tryf 
+	ON rb.treasury_id = tryf.hierarchy_Id
+	AND try.category = 'T'
+JOIN ctmis_master.challan_master c
+	ON rb.challan_id = c.id
+WHERE
+try.hierarchy_Code = 'KKJ'
+AND DATE(a.token_date) >= '2023-11-28'
+#AND ldr.gross_amount <> ldr.deduction_amount
+#AND rb.id = 85301307
+#AND ld.receipt_type = 'GT'
+ORDER BY ldr.source_reference DESC
+
+-----------------------------------------
+
+RCT_CHALLAN_HDR
+
+
+SELECT  c.token challan_seq, DATE(c.challan_date), try.hierarchy_Code , 
+a.registration_no, 
+rpyd.name WHO_DEPOSITED,
+'' FOR_WHOM_DEPOSITED , 
+a.particulars , a.counter_signed , 
+case when a.source_reference IS NOT NULL AND a.source_type = 'BILLS' then cm.transfer_type 
+		ELSE a.challan_type END AS challan_type ,		
+a.total_receipt AMOUNT, hoa.amount,
+a.remarks, DATE( a.challan_deposit_date)  , a.scroll_no , 
+a.voucher_number CHALLAN_NUMBER, 
+case when a.receipt_type='GT' then 'TD' ELSE a.receipt_type  END AS receipt_type , 
+'' COURT_CHALLAN_NUMBER , '' COURT_CHALLAN_DATE,
+'M' REFUND_FLAG , '' DEALER_EXIST_FLAG ,  '' PROCESSING_FLAG , bbm.bank_code , bbm.branch_code , SUBSTR(h.head,1,4), 
+di.code DIVISION_CODE, '' TITLE_SUIT_NUMBER,
+'' CREATE_UID , DATE(c.challan_date) CREATE_DATE,
+'' MODIFIED_UID, '' MODIFIED_DATE, '' OBJECTION_CODE,
+a.challan_number, a.scroll_page_no, '' DEPOSITOR_TYPE
+,'-----------',  a.* 
+FROM ctmis_egras.receipt_base a   
+JOIN ctmis_master.challan_master c
+	ON a.challan_id = c.id
+JOIN pfmaster.hierarchy_setup try 
+	ON a.treasury_id = try.hierarchy_Id
+	AND try.category = 'T' 
+JOIN ctmis_egras.receipt_hoa_details hoa
+	ON a.id = hoa.receipt_base
+JOIN probityfinancials.heads h 
+	ON hoa.head_id = h.head_id
+LEFT JOIN ctmis_egras.receipt_payer_details rpyd
+	ON a.id = rpyd.receipt_base
+LEFT JOIN ctmis_dataset.bill_component_master cm 
+	ON a.source_master_code = cm.code
+LEFT JOIN ctmis_dataset.bank_branch_master bbm 
+	ON a.bank_id=bbm.id 
+LEFT JOIN ctmis_dataset.division_master di
+	ON a.division_id = di.id
+WHERE
+try.hierarchy_Code = 'KKJ'
+and DATE(c.challan_date) >= '2023-11-28' 
+#AND a.division_id IS NOT NULL 
+#AND a.source_type = 'BILLS'
+#AND bbm.bank_code IS NOT NULL 
+#AND a.voucher_number IS NOT NULL 
+#AND a.challan_type <> 'C'
+ORDER BY a.id LIMIT 0,20
+
+
+
+
+---------- 
+
+NOT TESTED QUERIES (VPN Down)
+
+
+SELECT a.id, c.token challan_seq, DATE(c.challan_date), try.hierarchy_Code , 
+a.registration_no, 
+rpyd.name WHO_DEPOSITED,
+'' FOR_WHOM_DEPOSITED , 
+a.particulars , a.counter_signed , 
+case when a.source_reference IS NOT NULL AND a.source_type = 'BILLS' then cm.transfer_type 
+		ELSE a.challan_type END AS challan_type ,		
+a.total_receipt AMOUNT, sum(hoa.amount),
+a.remarks, DATE( a.challan_deposit_date)  , a.scroll_no , 
+a.voucher_number CHALLAN_NUMBER, 
+case when a.receipt_type='GT' then 'TD' ELSE a.receipt_type  END AS receipt_type , 
+'' COURT_CHALLAN_NUMBER , '' COURT_CHALLAN_DATE,
+'M' REFUND_FLAG , '' DEALER_EXIST_FLAG ,  '' PROCESSING_FLAG , bbm.bank_code , bbm.branch_code , SUBSTR(h.head,1,4), 
+di.code DIVISION_CODE, '' TITLE_SUIT_NUMBER,
+'' CREATE_UID , DATE(c.challan_date) CREATE_DATE,
+'' MODIFIED_UID, '' MODIFIED_DATE, '' OBJECTION_CODE,
+a.challan_number, a.scroll_page_no, '' DEPOSITOR_TYPE
+#,'-----------',  a.* 
+FROM ctmis_egras.receipt_base a   
+JOIN ctmis_master.challan_master c
+	ON a.challan_id = c.id
+JOIN pfmaster.hierarchy_setup try 
+	ON a.treasury_id = try.hierarchy_Id
+	AND try.category = 'T' 
+JOIN ctmis_egras.receipt_hoa_details hoa
+	ON a.id = hoa.receipt_base
+JOIN probityfinancials.heads h 
+	ON hoa.head_id = h.head_id
+LEFT JOIN ctmis_egras.receipt_payer_details rpyd
+	ON a.id = rpyd.receipt_base
+LEFT JOIN ctmis_dataset.bill_component_master cm 
+	ON a.source_master_code = cm.code
+LEFT JOIN ctmis_dataset.bank_branch_master bbm 
+	ON a.bank_id=bbm.id 
+LEFT JOIN ctmis_dataset.division_master di
+	ON a.division_id = di.id
+WHERE
+try.hierarchy_Code = 'KKJ'
+and DATE(c.challan_date) >= '2023-11-28' 
+
+GROUP BY a.id, c.token challan_seq, DATE(c.challan_date), try.hierarchy_Code , 
+a.registration_no, 
+rpyd.name ,
+'' , 
+a.particulars , a.counter_signed , 
+case when a.source_reference IS NOT NULL AND a.source_type = 'BILLS' then cm.transfer_type 
+		ELSE a.challan_type END  ,		
+a.total_receipt, SUM(hoa.amount),
+a.remarks, DATE( a.challan_deposit_date)  , a.scroll_no , 
+a.voucher_number , 
+case when a.receipt_type='GT' then 'TD' ELSE a.receipt_type  END , 
+''  , '' ,
+'M' , '' ,  '' , bbm.bank_code , bbm.branch_code , SUBSTR(h.head,1,4), 
+di.code , '',
+''  , DATE(c.challan_date) ,
+'' , '' , '' ,
+a.challan_number, a.scroll_page_no, '' 
+
+ORDER BY a.id LIMIT 0,20
+
+
+RCT_CHALLAN_DTL Query 
+
+
+SELECT a.id, c.token challan_seq, DATE(c.challan_date), try.hierarchy_Code,
+1, h.head, h.head_id, 'N', 'AS', hoa.amount, 
+case when a.source_reference IS NOT NULL AND a.source_type = 'BILLS' then cm.transfer_type 
+		ELSE a.challan_type END AS challan_type,
+'' CREATE_UID, DATE(c.challan_date) CHALLAN_DATE, '', '' 	
+FROM ctmis_egras.receipt_base a   
+JOIN ctmis_master.challan_master c
+	ON a.challan_id = c.id
+JOIN pfmaster.hierarchy_setup try 
+	ON a.treasury_id = try.hierarchy_Id
+	AND try.category = 'T' 
+JOIN ctmis_egras.receipt_hoa_details hoa
+	ON a.id = hoa.receipt_base
+JOIN probityfinancials.heads h 
+	ON hoa.head_id = h.head_id
+LEFT JOIN ctmis_dataset.bill_component_master cm 
+	ON a.source_master_code = cm.code
+
+
+
+NOT TESTED QUERIES ENDS HERE
+
+
+
+-------
+
+
+
+
+
+
+SELECT f.* , '----------' ,e.*, '-----------', c.*, '--------------', a.*, '-----------', b.* FROM ctmis_master.bill_details_flow a 
+JOIN ctmis_master.bill_details_base b
+	ON a.bill_base = b.id
+JOIN ctmis_master.token_master c
+	ON b.token_id = c.id
+JOIN pfmaster.seat_user_alloted d
+	ON a.from_seat = d.allot_Id
+JOIN pfmaster.hierarchy_setup f
+	ON d.seat_Id = f.hierarchy_Id
+JOIN pfmaster.user_setup e
+	ON d.user_Id = e.user_Id
+ORDER BY c.token_date DESC 
+LIMIT 0,50
+
+
+
+SELECT a., '----', d. FROM ctmis_master.bill_details_component a
+JOIN ctmis_master.bill_details_beneficiary b
+	ON a.bill_beneficiary = b.id
+JOIN ctmis_master.bill_details_base c
+	ON b.bill_base = c.id
+JOIN ctmis_dataset.bill_component_master d
+	ON a.component_master = d.code
+JOIN ctmis_egras.receipt_base e
+	ON c.id = e.source_reference 
+	AND e.source_type = 'BILLS'
+ORDER BY c.id DESC 
+LIMIT 0,10
+
+
+
+SELECT a.*, '----', d.* FROM ctmis_master.bill_details_component a
+JOIN ctmis_master.bill_details_beneficiary b
+	ON a.bill_beneficiary = b.id
+JOIN ctmis_master.bill_details_base c
+	ON b.bill_base = c.id
+JOIN ctmis_dataset.bill_component_master d
+	ON a.component_master = d.code
+JOIN ctmis_egras.receipt_base e
+	ON c.id = e.source_reference 
+JOIN ctmis_egras.receipt_hoa_details f
+	ON e.id = f.receipt_base
+WHERE
+c.treasury_id = 191
+AND e.source_type = 'BILLS'
+ORDER BY c.id DESC 
+LIMIT 0,10
+
+
+
+--------------------------
+
+BITOPI BAA QUERY
+
+
+SELECT m.* FROM 
+(
+	SELECT SUBSTR(a.financial_year,1,4) finyear1, (CAST(SUBSTR(a.financial_year,1,4) AS INTEGER) + 1) finyear2, 
+	'18', substr(dep.hierarchy_Code,1,2) dep_code, 
+	replace(substr(h.head,1,20), '-', '') head,  
+	replace(substr(h.head,22,26),'-','') obj, st.ddo_code, pb.token_number tsn,
+	date(pb.payment_scheduled_on) vd, 
+	a.total_allowance, a.total_deduction, a.total_net_amount,
+	CONCAT( lpad(t.token,6,'0'), REPLACE( date(t.token_date), '-','' ),try.hierarchy_Code) uid,
+	'' ST,'' fn ,'' ud,'' rm,
+	emp.beneficiary_bank_account, emp.beneficiary_bank_ifsc, '' city,'' agency,'' ddo_name, (emp.allowance - emp.deduction) ben_net,
+	CASE
+		WHEN pc.pc_id IS NOT NULL THEN pc.abbreviation
+		WHEN h.plan_status = 'NP' THEN 'EE'
+		ELSE 'Plan'
+	END AS scheme, try.hierarchy_Code tr_code
+	#a.* 
+	FROM ctmis_master.bill_details_base a 
+	JOIN ctmis_master.token_master t
+		ON a.token_id = t.id	
+	JOIN pfmaster.hierarchy_setup try 
+		ON a.treasury_id = try.hierarchy_Id
+		AND try.category = 'T'
+	JOIN probityfinancials.heads h 
+		ON a.head_id = h.head_id
+	LEFT JOIN probityfinancials.plan_category_head_mapping pchm 
+		ON	h.head_id = pchm.head_id
+	LEFT JOIN probityfinancials.plan_category pc 
+		ON	pchm.pc_id = pc.pc_id
+	LEFT JOIN ctmis_staging.staging_bill_details_base st
+		ON a.stager_id = st.id
+	JOIN ctmis_master.bill_details_beneficiary emp
+		ON a.id = emp.bill_base
+	JOIN pfmaster.hierarchy_setup dep
+		ON a.department_id = dep.hierarchy_Id
+	JOIN ctmis_master.payment_bills pbi
+		ON a.id = pbi.bill_details_base_id
+	JOIN ctmis_master.payment_base pb
+		ON pbi.payment_base_id = pb.id
+	WHERE 
+	try.hierarchy_Code = 'KAM'
+	AND date(pb.payment_scheduled_on) >= '2024-01-29'
+) m
+WHERE
+m.scheme IN 
+(
+'CS-EE',
+'EE-CS',
+'EE-SS',
+'EE',
+'SOPD-ODS',
+'PD-SS',
+'EAP',
+'TG-FFC',
+'EAP-SS',
+'OPD-SS',
+'CSS',
+'SOPD-SS',
+'SOPD-SCSP SS',
+'SOPD-G'
+)
+AND m.ddo_code like 'FOR/005%'
+
+#LIMIT 0,5
+;
+
+update PFMS_EPENDITURE_PILOTED a 
+set a.ddoname = 
+(
+    select b.ddo_name from gen_ddo_mst b
+    where 
+    a.treasury_code = b.treasury_code
+    and a.ddo_code = b.ddo_code 
+) 
+where
+exists 
+(
+    select b.* from gen_ddo_mst b
+    where 
+    a.treasury_code = b.treasury_code
+    and a.ddo_code = b.ddo_code 
+);
+
+update PFMS_EPENDITURE_PILOTED a 
+set a.ddo_code = replace(a.ddo_code, '-DIV', '')
+where
+a.ddo_code like '%-DIV'
+
+
+
+
+

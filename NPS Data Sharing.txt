@@ -1,0 +1,27 @@
+For the Transaction Id - 1112770003525
+Column - "TRANS_ID" is updated but column - "pran" and "status" are not updated in table - "bills_nps_deduction";
+Duplicate entries in bills_nps_deduction needs to be removed; Since migration data have been already uploaded in the EPR.
+Consequently - the transaction id in the tables - "ctmis_master.bills_nps_contribution_details" 
+and "ctmis_master.bills_nps_deduction" needs to sanitised. Please verify and sanitise the entries -
+
+The details have been attached in the excel attachning details(removal reason) alongside for ready referrence. 
+Entries other than these transcations belonging to PPAN Number 2022370700200199 have been found with PRAN Number Null in bills_nps_deduction.
+
+
+
+
+############# NPS Queries #################
+
+
+
+## Transaction ID check query
+# Query Starts Here
+SELECT c.*, '--->base', a.*, '----->details', b.* 
+FROM ctmis_master.bills_nps_contribution_base a
+RIGHT JOIN ctmis_master.bills_nps_contribution_details b
+	ON a.id = b.bill_nps_contribution_base_id
+RIGHT JOIN ctmis_master.bills_nps_deduction c
+	ON b.bill_nps_deduction_id = c.id
+WHERE
+c.TRANS_ID = '1112770003525'
+# Query Ends Here
