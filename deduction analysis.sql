@@ -52,7 +52,7 @@ JOIN ctmis_dataset.bill_component_master cm
 WHERE
 a.pay_year = 2024
 and a.pay_month = 3
-AND try.hierarchy_Code = 'NAG'
+AND try.hierarchy_Code = 'DIS'
 AND a.sub_type = 'SB_SB'
 AND cm.component_type = 'D'
 AND a.approved_by IS NOT NULL 
