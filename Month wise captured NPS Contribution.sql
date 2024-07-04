@@ -1,6 +1,6 @@
 SELECT concat(tr.hierarchy_Code,' - ',tr.hierarchy_Name),
 a.month,
-#COUNT(*), SUM(a.employee_contribution), 
+COUNT(*), COUNT(a.employee_id), SUM(a.employee_contribution), 
 SUM(a.employer_contribution)
 from ctmis_master.bills_nps_deduction a
 JOIN pfmaster.hierarchy_setup tr
