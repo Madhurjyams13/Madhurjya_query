@@ -27,13 +27,18 @@ LEFT JOIN ctmis_master.payment_bills pbi
 	ON a.id = pbi.bill_details_base_id
 LEFT JOIN ctmis_master.payment_base pb
 	ON pbi.payment_base_id = pb.id
+LEFT JOIN pfmaster.seat_user_alloted sua
+	ON a.held_by = sua.allot_Id
+LEFT JOIN pfmaster.user_setup us
+	ON sua.user_Id = us.user_Id
 WHERE
 #st.treasury_code = 'UDG'
-st.source_bill_type = 'GA' 
+#st.source_bill_type = 'GA' 
 #a.id = 16598355
 #a.bill_number LIKE 'BILL/202425/HFLPWB011/0003%'
-AND ddo.hierarchy_Code = 'DIS/FEB/001' 
-AND date(st.entry_date) BETWEEN '2024-05-25' AND '2024-06-05'
+ddo.hierarchy_Code = 'DIS/FEB/001' 
+AND date(st.entry_date) 
+	BETWEEN '2024-09-20' AND '2024-09-21'
 #AND st.gross_pay/st.incumbent_count = 1250
 /*AND (
 	    UPPER(st.remarks) LIKE '%ORUN%' OR

@@ -24,11 +24,11 @@ JOIN probityfinancials.head_setup mh
 JOIN probityfinancials.head_setup dh 
 	ON h.detailed_head = dh.head_setup_id
 WHERE
-date(le.expenditure_date) BETWEEN DATE('2023-04-01') AND DATE('2024-03-31')
+date(le.expenditure_date) BETWEEN DATE('2023-04-01') AND DATE('2023-07-31')
 AND le.financial_year = '2023-24'
 AND le.source_category = 'BILLS'
 AND SUBSTR(h.head,1,4) <> '2071' AND  b.bill_pension_type IS NULL
-AND SUBSTR(h.head, 22,2) NOT IN ('01','02','31')
+AND SUBSTR(h.head, 22,2) NOT IN ('01','02','31','21')
 GROUP BY 
 CONCAT( mh.head_code, '->', mh.head_name) ,
 CONCAT( dh.head_code, '->', dh.head_name) ,
@@ -62,7 +62,7 @@ JOIN probityfinancials.head_setup dh
 	ON h.detailed_head = dh.head_setup_id
 WHERE
 le.source_category = 'CHEQUE'
-AND date(le.expenditure_date) BETWEEN DATE('2023-04-01') AND DATE('2024-03-31')
+AND date(le.expenditure_date) BETWEEN DATE('2023-04-01') AND DATE('2023-07-31')
 AND le.financial_year = '2023-24'
 AND h.head NOT LIKE '8443-00-120%'
 GROUP BY

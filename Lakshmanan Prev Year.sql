@@ -23,10 +23,10 @@ LEFT JOIN probityfinancials.heads h
 JOIN ctmis_master.bill_details_base b
 	ON le.source_reference = b.id 
 WHERE
-date(le.expenditure_date) BETWEEN DATE('2023-04-01') AND DATE('2024-03-31')
+DATE(b.voucher_date) BETWEEN DATE('2023-04-01') AND DATE('2024-03-31')
 AND le.financial_year = '2023-24'
 AND le.source_category = 'BILLS'
-AND ( SUBSTR(h.head,1,4) = '2071' OR b.bill_pension_type IS NOT NULL )
+AND ( SUBSTR(h.head,1,4) = '2071' OR b.bill_pension_type IS NOT NULL OR SUBSTR(h.head, 22,2) = '21' )
 
 UNION ALL 
 
@@ -51,7 +51,7 @@ date(le.expenditure_date) BETWEEN DATE('2023-04-01') AND DATE('2024-03-31')
 AND le.financial_year = '2023-24'
 AND le.source_category = 'BILLS'
 AND SUBSTR(h.head,1,4) <> '2071' AND  b.bill_pension_type IS NULL
-AND SUBSTR(h.head, 22,2) NOT IN ('01','02','31')
+AND SUBSTR(h.head, 22,2) NOT IN ('01','02','31', '21')
 #AND SUBSTR(h.head,1,4) NOT IN ('8342','8550','8658')
 GROUP BY 
 h.head,
