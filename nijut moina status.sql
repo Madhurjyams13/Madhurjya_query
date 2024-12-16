@@ -30,9 +30,8 @@ JOIN ctmis_master.bill_details_base c
 LEFT JOIN ctmis_master.payment_bills d
 	ON c.id = d.bill_details_base_id
 WHERE
-ddo.hierarchy_Code = 'DIS/FEB/001'
-AND date(a.received_on) >= '2024-11-01'
-AND a.head_of_account_id = 68692
+date(a.received_on) >= '2024-11-01'
+AND a.head_of_account_id IN (108563,108564)
 
 ) o
 GROUP BY o.bill_status, o.pay_status

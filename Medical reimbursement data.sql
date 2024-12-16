@@ -22,8 +22,8 @@ LEFT JOIN pfmaster.hierarchy_setup ddo
 JOIN ctmis_master.bill_details_beneficiary ben
 	ON a.id = ben.bill_base
 WHERE
-DATE(a.voucher_date) BETWEEN '2024-04-01'
-	AND '2024-08-31'
+DATE(a.voucher_date) BETWEEN '2023-04-01'
+	AND '2024-03-31'
 AND a.sub_type = 'MR_MR'
 #GROUP BY 
 #concat(tr.hierarchy_Code,'->',tr.hierarchy_Name),
