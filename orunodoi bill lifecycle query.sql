@@ -1,6 +1,6 @@
 SELECT 
-m.bstatus, COUNT(m.bill_id), SUM(m.amount), SUM(m.ben_count) #uncomment for aggregated figures
-#m.* #uncomment for details list
+m.bstatus "Bill Status", COUNT(m.bill_id) "Number of Bills", SUM(m.amount) "Amount", SUM(m.ben_count) "Number of Beneficiaries" #uncomment for summary figures
+#m.* #uncomment for detailed list
 FROM 
 (
 SELECT 
@@ -26,23 +26,23 @@ case
 	when b.rejected_by IS NOT NULL
 		then 'Bill Rejected by the Treasury' 
 	ELSE 'Others' 
-END AS bstatus,
+END AS bstatus, # Diiferent stages of the bill staring from generation to payment
 a.bill_id,				
 a.bill_no, 
 b.total_allowance amount,
 round(b.total_allowance/1250,0) ben_count
 #,a.*,'------', b.*
-FROM pfpaybills.paybill_base a
-JOIN probityfinancials.heads h
+FROM pfpaybills.paybill_base a # Bill Source in IFMIS - Tracks Generation and Submission
+JOIN probityfinancials.heads h # Added to Filter Orunodoi Head of Account
 	ON a.head_id = h.head_id
-JOIN pfmaster.hierarchy_setup ddo
+JOIN pfmaster.hierarchy_setup ddo # Added to filter the DDO Code - DIS/FEB/001
 	ON a.ddo_id = ddo.hierarchy_Id
 	AND ddo.category = 'S'
-LEFT JOIN ctmis_master.bill_details_base b
+LEFT JOIN ctmis_master.bill_details_base b # Treasury Table - Tracks the Treasury Processing as well Payment generation Status
 	ON a.bill_id = b.source_bill_id
-LEFT JOIN ctmis_master.payment_bills pbi
+LEFT JOIN ctmis_master.payment_bills pbi # RBI Details Tables - Tracks Bill wise Payment Status
 	ON b.id = pbi.bill_details_base_id
-LEFT JOIN ctmis_master.payment_base pb
+LEFT JOIN ctmis_master.payment_base pb # RBI Details Tables - Tracks Batch wise Payment Status
 	ON pbi.payment_base_id = pb.id
 WHERE
 ddo.hierarchy_Code like 'DIS/FEB/001%' 
@@ -53,4 +53,4 @@ AND a.bill_type = 'GA'
 
 ORDER BY a.bill_id DESC 
 ) m
-GROUP BY m.bstatus ORDER BY 1 #uncomment for aggregated figures
+GROUP BY m.bstatus ORDER BY 1 #uncomment for summary figures
