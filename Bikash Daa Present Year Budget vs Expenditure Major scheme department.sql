@@ -26,7 +26,7 @@ SELECT bud.*, expen.expen FROM
 	LEFT JOIN probityfinancials.plan_category pc 
 		ON	pchm.pc_id = pc.pc_id
 	WHERE
-	    b.year = '2024-25'
+	    b.year = '2023-24'
 	GROUP BY  hs.hierarchy_Id, CONCAT( mh.head_code, '->', mh.head_name),
 	CASE
 			WHEN pc.pc_id IS NOT NULL THEN pc.abbreviation
@@ -65,7 +65,7 @@ LEFT JOIN
 		ON le.source_reference = b.id
 		WHERE
 		date(le.expenditure_date) BETWEEN DATE('2024-04-01') AND DATE(NOW())
-		AND le.financial_year = '2024-25'
+		AND le.financial_year = '2023-24'
 		AND le.source_category = 'BILLS'
 		AND SUBSTR(h.head,1,4) <> '2071'
 		AND b.bill_pension_type IS NULL
@@ -104,7 +104,7 @@ LEFT JOIN
 		ON le.source_reference = b.id
 		WHERE
 		DATE(b.voucher_date) BETWEEN DATE('2024-04-01') AND DATE(NOW())
-		AND le.financial_year = '2024-25'
+		AND le.financial_year = '2023-24'
 		AND le.source_category = 'BILLS'
 		AND ( SUBSTR(h.head,1,4) = '2071' OR b.bill_pension_type IS NOT NULL or SUBSTR(h.head, 22,2)='21' )
 		GROUP BY #dep.hierarchy_Name,
@@ -146,7 +146,7 @@ LEFT JOIN
 		# ON le.source_reference = b.id
 		WHERE
 		date(le.expenditure_date) BETWEEN DATE('2024-04-01') AND DATE(NOW())
-		AND le.financial_year = '2024-25'
+		AND le.financial_year = '2023-24'
 		AND le.source_category = 'CHEQUE'
 		GROUP BY dep.hierarchy_Name,
 		CONCAT( mh.head_code, '->', mh.head_name),
@@ -193,7 +193,7 @@ SELECT expen.dep, expen.mhead, expen.scheme, bud.bud, expen.expen FROM
 	LEFT JOIN probityfinancials.plan_category pc 
 		ON	pchm.pc_id = pc.pc_id
 	WHERE
-	    b.year = '2024-25'
+	    b.year = '2023-24'
 	GROUP BY  hs.hierarchy_Id, CONCAT( mh.head_code, '->', mh.head_name),
 	CASE
 			WHEN pc.pc_id IS NOT NULL THEN pc.abbreviation
@@ -232,7 +232,7 @@ RIGHT JOIN
 		ON le.source_reference = b.id
 		WHERE
 		date(le.expenditure_date) BETWEEN DATE('2024-04-01') AND DATE(NOW())
-		AND le.financial_year = '2024-25'
+		AND le.financial_year = '2023-24'
 		AND le.source_category = 'BILLS'
 		AND SUBSTR(h.head,1,4) <> '2071'
 		AND b.bill_pension_type IS NULL
@@ -312,7 +312,7 @@ RIGHT JOIN
 		#JOIN ctmis_master.bill_details_base b
 		# ON le.source_reference = b.id
 		WHERE
-		date(le.expenditure_date) BETWEEN DATE('2024-04-01') AND DATE(NOW())
+		date(le.expenditure_date) BETWEEN DATE('2023-04-01') AND DATE(NOW())
 		AND le.financial_year = '2024-25'
 		AND le.source_category = 'CHEQUE'
 		GROUP BY dep.hierarchy_Name,

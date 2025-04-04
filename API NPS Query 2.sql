@@ -1,9 +1,9 @@
 SELECT emp.*, 
-con.first_capture, 
-con.last_capture,
+concat(YEAR(con.first_capture),'/',lpad(MONTH(con.first_capture),2,0)), 
+concat(YEAR(con.last_capture),'/',lpad(MONTH(con.last_capture),2,0)),
 con.total_capture,
-con.first_upload, 
-con.last_upload,
+concat(YEAR(con.first_upload),'/',lpad(MONTH(con.first_upload),2,0)),
+concat(YEAR(con.last_upload),'/',lpad(MONTH(con.last_upload),2,0)),
 con.total_upload from 
 (
 	SELECT 
@@ -38,7 +38,7 @@ con.total_upload from
 	JOIN probityfinancials.treasury_setup tr
 		ON a.treasury_Id = tr.treasury_hierarchy
 	WHERE
-	a.gpf_or_ppan_no = '2010185000400002'
+	a.gpf_or_ppan_no = '2004182000102959'
 ) emp
 
 LEFT JOIN 
@@ -64,7 +64,7 @@ LEFT JOIN
 		, '%Y-%m-%d') pmonth, b.*
 		FROM ctmis_master.bills_nps_deduction b
 		WHERE
-		b.ppan = '2010185000400002' 
+		b.ppan = '2004182000102959' 
 	) m
 	GROUP BY m.ppan
 	) cap 
@@ -87,7 +87,7 @@ LEFT JOIN
 		, '%Y-%m-%d') pmonth, b.*
 		FROM ctmis_master.bills_nps_deduction b
 		WHERE
-		b.ppan = '2010185000400002'
+		b.ppan = '2004182000102959'
 		AND b.status = 'A'
 	) m
 	GROUP BY m.ppan

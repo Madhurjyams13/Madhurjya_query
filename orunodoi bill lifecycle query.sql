@@ -5,12 +5,12 @@ FROM
 (
 SELECT 
 case 
-	when b.voucher_date IS NOT NULL 
-		then '9. Bill Paid'
+	/*when b.voucher_date IS NOT NULL 
+		then '9. Bill Paid'*/
 	when pbi.payment_acknowledgement_status IS NOT NULL  
 		then CONCAT('8. Bill Payment Status : ', pbi.payment_acknowledgement_status)
 	when pb.payment_acknowledgement_status IS NOT NULL  
-		then CONCAT('7. Bill Batch Payment Status : ', pb.payment_acknowledgement_status)
+		then CONCAT('7. Bill Batch Payment Status : ', pb.payment_acknowledgement_status) 
 	when pb.biz_msg_idr IS NOT NULL 
 		then '6. Uploaded to eKuber'
 	when b.approved_by IS NOT NULL
@@ -46,7 +46,7 @@ LEFT JOIN ctmis_master.payment_base pb # RBI Details Tables - Tracks Batch wise 
 	ON pbi.payment_base_id = pb.id
 WHERE
 ddo.hierarchy_Code like 'DIS/FEB/001%' 
-AND DATE(a.created_on) BETWEEN '2024-12-01' AND '2024-12-10' 
+AND DATE(a.created_on) BETWEEN '2025-01-25' AND '2025-02-11' 
 AND a.head_id = 68692 
 AND a.delete_status = 'N' 
 AND a.bill_type = 'GA' 
