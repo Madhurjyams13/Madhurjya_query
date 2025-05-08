@@ -5,8 +5,8 @@ FROM
 (
 SELECT 
 case 
-	/*when b.voucher_date IS NOT NULL 
-		then '9. Bill Paid'*/
+	when b.voucher_date IS NOT NULL 
+		then '9. Bill Paid'
 	when pbi.payment_acknowledgement_status IS NOT NULL  
 		then CONCAT('8. Bill Payment Status : ', pbi.payment_acknowledgement_status)
 	when pb.payment_acknowledgement_status IS NOT NULL  
@@ -46,8 +46,8 @@ LEFT JOIN ctmis_master.payment_base pb # RBI Details Tables - Tracks Batch wise 
 	ON pbi.payment_base_id = pb.id
 WHERE
 ddo.hierarchy_Code like 'DIS/FEB/001%' 
-AND DATE(a.created_on) BETWEEN '2025-01-25' AND '2025-02-11' 
-AND a.head_id = 68692 
+AND DATE(a.created_on) BETWEEN '2025-04-01' AND '2025-04-10' 
+AND a.head_id = 111156 
 AND a.delete_status = 'N' 
 AND a.bill_type = 'GA' 
 

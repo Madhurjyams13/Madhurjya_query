@@ -43,7 +43,7 @@ FROM
     LEFT JOIN pfmaster.user_setup assignu
         ON assigns.user_Id = assignu.user_Id
     WHERE
-        r.fin_Year = '2024-25'
+        r.fin_Year IN ('2024-25','2025-26')
         AND r.status NOT IN ('C', 'N')
 ) m
 GROUP BY m.assigned_to
