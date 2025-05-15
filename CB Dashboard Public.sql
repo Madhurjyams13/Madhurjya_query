@@ -1,5 +1,5 @@
 SELECT 
-'Salary',
+'Public Account',
 dep.hierarchy_Name,
 CASE 
 	    WHEN CAST(mh.head_code AS INTEGER) >= 2000 AND CAST(mh.head_code AS INTEGER) < 4000 THEN 'Revenue'
@@ -38,11 +38,11 @@ LEFT JOIN probityfinancials.plan_category pc
 	ON pchm.pc_id = pc.pc_id
 WHERE
 le.financial_year = '2025-26'
-AND le.expenditure_date BETWEEN '2025-04-01' AND '2025-04-30'
+AND le.expenditure_date BETWEEN '2025-04-01' AND '2025-04-30' 
 AND le.source_payment_information_id IS NOT NULL
-AND SUBSTR(h.head,22,2) IN ('01','02','31')
-AND b.foc_number IS NULL 
-AND CAST(mh.head_code AS INTEGER) < 8000
+AND CAST(mh.head_code AS INTEGER) > 8000
+AND dh.head_code NOT IN ('01','02','31','21')
+AND b.head_id NOT IN (86597)
 GROUP BY dep.hierarchy_Name,
 CASE 
 	    WHEN CAST(mh.head_code AS INTEGER) >= 2000 AND CAST(mh.head_code AS INTEGER) < 4000 THEN 'Revenue'

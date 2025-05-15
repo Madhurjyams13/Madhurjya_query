@@ -1,8 +1,7 @@
-SET @search_term = 'RBI';
+SET @search_term = 'NPS';
 
 SELECT 
-  a.TABLE_SCHEMA AS "Schema",
-  a.TABLE_NAME AS "Table", 
+  concat(a.TABLE_SCHEMA,'.',a.TABLE_NAME) AS "Table",
   a.TABLE_ROWS AS "Rows",
   ROUND((a.DATA_LENGTH + a.INDEX_LENGTH) / 1024 / 1024, 2) AS "Size",
   a.UPDATE_TIME AS "Last Update"
